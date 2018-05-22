@@ -1,5 +1,5 @@
 {
-  "name": "@hydro-protocol/sdk",
+  "name": "@crypdex/hydro-sdk",
   "version": "1.0.1",
   "description": "Javascript SDK for the Hydro API",
   "main": "build/index.js",
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
-    "bignumber.js": "^6.0.0",
+    "bignumber.js": "^7.1.0",
     "ethereumjs-util": "^5.1.5",
     "ws": "^5.1.1"
   },
