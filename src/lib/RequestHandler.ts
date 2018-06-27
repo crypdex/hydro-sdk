@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { AxiosResponse } from 'axios'
-
+import * as urljoin from 'url-join'
 import { ServerError, APIError } from '../errors/errors'
 import { SignatureHandler } from '../types'
 
@@ -13,12 +13,10 @@ export class RequestHandler {
   private static BASE_URL: string = 'https://api.ddex.io/v2/'
   private static HEADER: string = 'Hydro-Authentication'
 
-  private sign: SignatureHandler
-  private account?: string
+  baseUrl: string
 
-  constructor(sign: SignatureHandler, account?: string) {
-    this.sign = sign
-    this.account = account
+  constructor(readonly sign: SignatureHandler, readonly account?: string, baseUrl?: string) {
+    this.baseUrl = baseUrl || RequestHandler.BASE_URL
   }
 
   /**
@@ -44,8 +42,13 @@ export class RequestHandler {
     return this.handleResponse(res)
   }
 
+  /**
+   * The baseUrl MUST have a trailing slash for this to work.
+   * TODO: fix
+   * @param path
+   */
   private getURL(path: string): string {
-    return RequestHandler.BASE_URL + path
+    return urljoin(this.baseUrl, path)
   }
 
   private async getAuthHeaders(): Promise<{}> {

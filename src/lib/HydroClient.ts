@@ -18,6 +18,13 @@ import { TradeList } from '../models/TradeList'
 
 import { SignatureHandler } from '../types'
 
+export interface HydroClientArgs {
+  sign?: SignatureHandler
+  account?: string
+  baseUrl?: string
+  privateKey?: string
+}
+
 export class HydroClient {
   private handler: RequestHandler
   private sign: SignatureHandler
@@ -27,14 +34,29 @@ export class HydroClient {
     this.sign = sign
   }
 
+  public static create({ sign, account, baseUrl, privateKey }: HydroClientArgs) {
+    if (sign) {
+      if (!account) {
+        throw new Error('an account is required')
+      }
+      return HydroClient.withCustomAuth(sign, account, baseUrl)
+    }
+
+    if (privateKey) {
+      return HydroClient.withPrivateKey(privateKey, baseUrl)
+    }
+
+    return HydroClient.withoutAuth(baseUrl)
+  }
+
   /**
    * If you only want to make public API calls, no authentication is needed
    */
-  public static withoutAuth(): HydroClient {
+  public static withoutAuth(baseUrl?: string): HydroClient {
     let sign = (message: string) => {
       throw new AuthError('Cannot authenticate without a private key!')
     }
-    let handler = new RequestHandler(sign)
+    let handler = new RequestHandler(sign, undefined, baseUrl)
 
     return new HydroClient(handler, sign)
   }
@@ -43,7 +65,7 @@ export class HydroClient {
    * Provide a private key for authentication purposes
    * @param privateKey A private key in hex format with the form "0x..."
    */
-  public static withPrivateKey(privateKey: string): HydroClient {
+  public static withPrivateKey(privateKey: string, baseUrl?: string): HydroClient {
     const privateKeyBuffer: Buffer = toBuffer(privateKey) as Buffer
     let sign = (message: string) => {
       // @ts-ignore: Error in the ethereumjs-util ts definition
@@ -52,7 +74,7 @@ export class HydroClient {
       return toRpcSig(ecdsaSignature.v, ecdsaSignature.r, ecdsaSignature.s)
     }
     let account = '0x' + (privateToAddress(privateKeyBuffer) as Buffer).toString('hex')
-    let handler = new RequestHandler(sign, account)
+    let handler = new RequestHandler(sign, account, baseUrl)
 
     return new HydroClient(handler, sign)
   }
@@ -63,10 +85,19 @@ export class HydroClient {
    * @param sign A function that takes the input message and signs it with the private key of the account
    * @param account The account that will be doing the signing
    */
-  public static withCustomAuth(sign: SignatureHandler, account: string): HydroClient {
-    let handler = new RequestHandler(sign, account)
+  public static withCustomAuth(
+    sign: SignatureHandler,
+    account: string,
+    baseUrl?: string
+  ): HydroClient {
+    let handler = new RequestHandler(sign, account, baseUrl)
 
     return new HydroClient(handler, sign)
+  }
+
+  public setBaseUrl(baseUrl: string) {
+    this.handler.baseUrl = baseUrl
+    return this
   }
 
   /**
@@ -181,8 +212,8 @@ export class HydroClient {
    * @param price The price of the order
    * @param amount The amount of token in the order
    */
-  public async calculateFees(price: string, amount: string): Promise<Fee> {
-    const data = await this.handler.get(join('fees'), { price, amount })
+  public async calculateFees(price: string, amount: string, quoteSymbol?: string): Promise<Fee> {
+    const data = await this.handler.get(join('fees'), { price, amount, quoteSymbol })
     return new Fee(data)
   }
 
